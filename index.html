@@ -1,0 +1,140 @@
+<html>
+  <head>
+    <style>
+      body,html {
+        margin:0;
+        padding:0;
+      }
+      canvas {
+        background-color: black;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas></canvas>
+    <script type="text/javascript" src="scripts/xml2json.js"></script>
+    <script type="text/javascript" src="scripts/file_handler.js"></script>
+    <script type="text/javascript" src="scripts/particle.js"></script>
+    <script type="text/javascript" src="scripts/rocket.js"></script>
+    <script type="text/javascript" src="scripts/vector.js"></script>
+    <script type="text/javascript" src="scripts/emitter.js"></script>
+    <script type="text/javascript" src="scripts/rocketlauncher.js"></script>
+    <script type="text/javascript">
+    "use strict";
+
+var maxParticles = 200000,
+  particleSize = 4,
+  emissionRate = 6,
+  objectSize = 3;
+
+
+var canvas = document.querySelector('canvas');
+var ctx = canvas.getContext('2d');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+
+function addNewParticles(timer) {
+    if (particles.length > maxParticles) return;
+
+    for (var i = 0; i < emitters.length; i++) {
+      if(emitters[i].emitterType == 'fountain'){
+        if(timer >= emitters[i].startTime && timer <= emitters[i].endTime){
+          for (var j = 0; j < emissionRate; j++) {
+            particles.push(emitters[i].emitParticle());
+          }
+        }
+      }else if(emitters[i].emitterType == 'rocket'){
+        if(timer == emitters[i].startTime){
+          particles.push(emitters[i].emitParticle());
+        }
+      }
+    }
+}
+
+function plotParticles(boundsX, boundsY) {
+  var currentParticles = [];
+
+  for (var i = 0; i < particles.length; i++) {
+    var particle = particles[i];
+    var pos = particle.position;
+
+    if (particle.particleType==='regular' && (pos.x < 0 || pos.x > boundsX || pos.y < 0  ||  particle.counter == 0)){
+		    particles[i] = undefined;
+		      continue;
+	  }else if(particle.particleType === 'rocket' && particle.counter == 0){
+      var blast = particle.explode();
+
+      for(var k = 0; k < blast.length; k ++){
+          currentParticles.push(blast[k]);
+      }
+
+      continue;
+    }
+
+	  particle.counter--;
+
+    particle.move();
+
+    currentParticles.push(particle);
+  }
+
+  particles = currentParticles;
+
+}
+
+function drawParticles() {
+  for (var i = 0; i < particles.length; i++) {
+    var position = particles[i].position;
+    ctx.fillStyle = particles[i].color;
+    ctx.fillRect(position.x, position.y, particleSize, particleSize);
+  }
+}
+
+var particles = [];
+
+var midX = canvas.width / 2;
+var midY = canvas.height/2;
+
+var json = getDataFromServer('example_data/fireworks.xml');
+
+var emitters = parseFireworksData(json, midX, midY);
+
+var timer = 0;
+var limit = getRoundTime(json);
+function loop() {
+
+
+timer++;
+if(timer> limit){
+	timer = 0;
+}
+  clear();
+  update();
+  draw();
+  queue();
+}
+
+function clear() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function update() {
+    addNewParticles(timer);
+		plotParticles(canvas.width, canvas.height, 5);
+}
+
+function draw() {
+  drawParticles();
+}
+
+function queue() {
+  window.requestAnimationFrame(loop);
+}
+
+loop();
+
+    </script>
+  </body>
+</html>
